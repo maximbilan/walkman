@@ -2,6 +2,8 @@
 
 A platformer for your terminal, written as one C file shaped like a Walkman wearing its headphones 📼
 
+> **Alpha.** One kind of level, one boss, and plenty still to tune. Bug reports and ideas are welcome in the issues.
+
 <p align="center"><img src="walkman.png" width="720" alt="walkman.c printed in a terminal: the source code forms a Walkman with headphones, two cassette reels in its window, in sunset colors"></p>
 
 <p align="center"><img src="walkman.gif" width="640" alt="walkman.c running in a terminal: a runner with headphones jumps across a skyline of cassettes while a Compact Disc boss rises in front of the sun and throws discs"></p>

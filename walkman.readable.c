@@ -555,21 +555,19 @@ static void save(const char *name, int n) {
 	if ((f = fopen(path, "wb"))) fwrite(h, 4, 11, f), fwrite(pcm, 2, n, f), fclose(f);
 }
 
-static int mute, tune;  // no sound at all; the process playing the music
+static int tune;  // the process playing the music
+#ifdef DEV
+static int mute;  // the bot's test plays without sound
+#endif
 
 /* Plays /tmp/walkman-NAME.wav in the background with afplay (macOS) or aplay
  * (Linux). With stop it becomes the music, and the old music stops. */
-#ifdef DEV
-static void dev_sound(const char *name);
-#endif
-
 static void sound(const char *name, int stop) {
 	char path[64];
 	int pid;
 #ifdef DEV
-	dev_sound(name);
-#endif
 	if (mute) return;
+#endif
 	sprintf(path, "/tmp/walkman-%s.wav", name);
 	if (!(pid = fork())) {
 		execlp("afplay", "afplay", path, (char *)0);

@@ -38,13 +38,13 @@ def tokens_of(code):
 
 
 def needs_space(a, b):
-    return [t for t in TOKEN.findall(a + b)] != [a, b]
+    return TOKEN.findall(a + b) != [a, b]
 
 
 def short_number(t):
     if t.lower().startswith("0x") or not re.fullmatch(r"[\d.]+", t) or "." not in t:
         return t
-    t = t.rstrip("0") if "." in t else t
+    t = t.rstrip("0")
     if t.startswith("0.") and len(t) > 2:
         t = t[1:]
     return t

@@ -87,7 +87,7 @@ def walkman(x, y):
                 if 0.05 < d < 0.135:
                     return True
             # the tape running between the reels, under them
-            return abs(y - (ry - 0.15)) < 0.012 and REELS[0][0] - 0.02 < x < REELS[1][0] + 0.02
+            return abs(y - (REELS[0][1] - 0.15)) < 0.012 and REELS[0][0] - 0.02 < x < REELS[1][0] + 0.02
         # the speaker grille on the right: four slits
         if 0.56 < x < 0.72 and -0.70 < y < -0.42 and (y + 0.70) % 0.075 < 0.014:
             return False
