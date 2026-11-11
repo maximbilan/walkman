@@ -53,3 +53,8 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+# walkman
+walkman
+walkman-dev
+__pycache__/
