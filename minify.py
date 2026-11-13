@@ -28,7 +28,7 @@ KEYWORDS = set(
 LIBRARY = set(
     "main malloc fork execlp _exit kill SIGCHLD SIG_IGN printf sprintf fwrite fopen fclose FILE stdout fflush puts exit system usleep read getpid ioctl TIOCGWINSZ "
     "winsize ws_col ws_row gettimeofday timeval tv_sec tv_usec signal SIGINT SIGTERM floorf ceilf roundf fabsf fabs "
-    "fminf fmaxf sqrtf sinf cosf expf powf tanhf fmod sin exp atan2f lroundf".split()
+    "fminf fmaxf sqrtf sinf cosf expf powf tanhf fmod fmodf sin exp atan2f lroundf".split()
 )
 AVOID = KEYWORDS | LIBRARY | {"y0", "y1", "yn", "j0", "j1", "jn"}
 

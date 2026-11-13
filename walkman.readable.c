@@ -58,10 +58,14 @@ static unsigned hash(unsigned x) {
  * and a character is 2 of them wide and 4 tall (about the shape of a cell). */
 static int COLS, ROWS, W, H, OY, camc;  // in characters; in pixels; world y = 0 at pixel OY; camera column
 static int scr[MAXW * MAXH];
-static Color ink[MAXW * MAXH];
+static Color ink[MAXW * MAXH], back[MAXW * MAXH];  // text color and background color
 
 static void put(int c, int r, int ch, Color col) {
 	if (c >= 0 && c < COLS && r >= 0 && r < ROWS) scr[r * COLS + c] = ch, ink[r * COLS + c] = col;
+}
+
+static void paint(int c, int r, Color col) {
+	if (c >= 0 && c < COLS && r >= 0 && r < ROWS) back[r * COLS + c] = col;
 }
 
 static void text(int c, int r, const char *s, Color col) {
@@ -253,33 +257,70 @@ static void update(int press) {
 
 static float tri(float u) { return 1 - fabsf(2 * (u - floorf(u)) - 1); }
 
+/* Smooth value noise, for the clouds. */
+static float lattice(int x, int y) { return (hash(x * 7919 + y * 104729 + 13) & 1023) / 1023.; }
+static float vnoise(float x, float y) {
+	int i = floorf(x), j = floorf(y);
+	float u = x - i, v = y - j;
+	u = u * u * (3 - 2 * u), v = v * v * (3 - 2 * v);
+	return (lattice(i, j) * (1 - u) + lattice(i + 1, j) * u) * (1 - v) + (lattice(i, j + 1) * (1 - u) + lattice(i + 1, j + 1) * u) * v;
+}
+
 static void background(int nosun) {
 	float beat = expf(-fmod(song, 60 / 70.) * 7), sunx = W * .78, suny = HORIZON - 19 + OY, ph = cam * .035;
 	int hz = (HORIZON + OY) / 4, c, r, k, prev, ridge[MAXW + 2];
-	for (k = 0; k < COLS * ROWS; k++) scr[k] = ' ', ink[k] = 0;
+	// Lightning: a strike every few seconds, flickering twice, somewhere new each time.
+	int strike = (int)(wt / 230);
+	float age = wt - strike * 230 - 60 - hash(strike) % 90, flash = age < 0 ? 0 : expf(-age * .35) * (age < 3 || age > 6 ? 1 : .3);
+	for (k = 0; k < COLS * ROWS; k++) scr[k] = ' ', ink[k] = 0, back[k] = 0;
 
-	// Stars.
-	for (r = 1; r < hz - 2; r++)
+	// The sky: a red storm, darkest at the top, glowing at the horizon, with
+	// clouds rolling over it and lit from below.
+	for (r = 0; r < hz; r++) {
+		float t = (float)r / hz;
+		Color sky = t < .55 ? mix(0x0e0004, 0x4a0610, t / .55) : mix(0x4a0610, 0xb4200e, (t - .55) / .45);
+		sky = mix(sky, 0xff8070, flash * .35);
 		for (c = 0; c < COLS; c++) {
-			unsigned h = hash((c + (int)(cam * .0125)) * 7919 + (r - OY / 4 + 99) * 104729);
-			if (h % 29 == 0)
-				put(c, r, "..'.`+*."[h >> 12 & 7],
-				    shade(h >> 16 & 1 ? 0xfff0ff : 0xa0dcff,
-				          (.45 + .55 * (.5 + .5 * sinf(wt * .05 + (h >> 8 & 63)))) * (1.3 - (r * 4 - OY) / 60.)));
+			float x = c * .09 + cam * .0045 + wt * .0016, y = r * .36,
+			      d = vnoise(x, y) * .65 + vnoise(x * 2.1 + 5, y * 2.1) * .35 - .38 - t * .42;
+			Color cloud = mix(sky, 0x14040a, fminf(1, d * 3));
+			paint(c, r, d > 0 ? cloud : sky);
+			if (d > 0) put(c, r, d < .09 ? '.' : d < .2 ? '~' : '%', mix(mix(sky, 0xff6a50, .45), 0x3a0c14, fminf(1, d * 4)));
 		}
+	}
 
-	// The sun: lines of '=', cut by stripes toward the bottom.
+	// The bolt, from the top of the sky down to the mountains.
+	if (flash > .05) {
+		int bx = (hash(strike * 31 + 7) % 1000) * COLS / 1000;
+		for (r = 0; r < hz - 3; r++) {
+			int step = (int)(hash(strike * 977 + r) % 3) - 1;
+			put(bx, r, step < 0 ? '/' : step > 0 ? '\\' : '|', mix(0xff5a5a, 0xffffff, flash));
+			bx -= step;
+		}
+	}
+
+	// The sun: lines of '=', cut by stripes toward the bottom, burning red.
 	for (r = (suny - 24) / 4; r < hz && !nosun; r++) {
 		float y = r * 4 + 2, dy = y - suny, hw, v;
 		if (fabsf(dy) >= 24) continue;
 		hw = sqrtf(576 - dy * dy), v = (y - suny + 24) / 48, k = r + (int)(wt / 24);
 		if (v > .5 && (k % 3 == 0 || (v > .8 && k % 3 == 1))) continue;
 		for (c = ceilf((sunx - hw) / 2 - .5); c <= floorf((sunx + hw) / 2 - .5); c++)
-			put(c, r, v < .25 ? '-' : '=', v < .5 ? mix(0xffec78, 0xff9646, v * 2) : mix(0xff9646, 0xff3c96, v * 2 - 1));
+			put(c, r, v < .25 ? '-' : '=', v < .5 ? mix(0xffd98c, 0xff5a32, v * 2) : mix(0xff5a32, 0xe0103c, v * 2 - 1)), paint(c, r, mix(0x6a0a10, 0xb4200e, v));
 	}
 
-	// Two ranges of mountains sliding by slower than you: a ridge of / _ \
-	// that rises or falls at most a row per column, with a gap for the sun.
+	// Ash, drifting up and across.
+	for (k = 0; k < 70; k++) {
+		unsigned h = hash(k * 2654435761 + 5);
+		float x = fmodf((h & 1023) / 1023. * W * 1.3 - cam * .08 + wt * (.05 + (h >> 10 & 15) * .004), W * 1.3),
+		      y = fmodf((h >> 14 & 1023) / 1023. * (hz * 4) - wt * (.04 + (h >> 24 & 7) * .01), hz * 4);
+		if (y < 0) y += hz * 4;
+		c = x / 2, r = y / 4;
+		if (c >= 0 && c < COLS && r < hz && scr[r * COLS + c] == ' ') put(c, r, h >> 28 & 1 ? '.' : '`', mix(0x8a5a5e, 0xe8c8c8, (h >> 20 & 15) / 15.));
+	}
+
+	// Two ranges of mountains sliding by slower than you: dark shapes with a
+	// red rim, a ridge of / _ \ that rises or falls at most a row per column.
 	for (k = 0; k < 2; k++) {
 		float par = k ? .22 : .1;
 		for (c = 0, prev = hz; c <= COLS; c++) {
@@ -293,19 +334,24 @@ static void background(int nosun) {
 		}
 		for (c = 0; c < COLS; c++) {
 			int a = ridge[c], b = ridge[c + 1], t;
-			Color line = k ? 0xc85ad2 : 0x8246be;
+			Color line = mix(k ? 0xff4a46 : 0xb8303c, 0xffd0c0, flash * .6), fill = k ? 0x14030a : 0x2c0812;
 			if (a >= hz && b >= hz) continue;
 			if (b < a) put(c, b, '/', line), t = b + 1;
 			else if (b > a) put(c, a, '\\', line), t = a + 1;
 			else put(c, a - 1, '_', line), t = a;
-			for (r = t; r < hz; r++)
-				put(c, r, hash((c + (int)(cam * par / 2)) * 31 + r * 17) % 9 ? ' ' : '.', k ? 0x501e6e : 0x341a5c);
+			for (r = t; r < hz; r++) {
+				put(c, r, hash((c + (int)(cam * par / 2)) * 31 + r * 17) % 9 ? ' ' : '.', k ? 0x4a1020 : 0x5a1828);
+				paint(c, r, fill);
+			}
 		}
 	}
 
-	// The floor: a neon grid in perspective that flashes on the kick.
-	Color neon = shade(0xff3cc8, .55 + .45 * beat);
-	for (c = 0; c < COLS; c++) put(c, hz, '-', shade(mix(neon, 0xffbef0, .4), .8));
+	// The floor: a red neon grid in perspective that flashes on the kick, over
+	// a glow that fades from the horizon.
+	Color neon = shade(0xff2e4a, .55 + .45 * beat);
+	for (r = hz; r < ROWS; r++)
+		for (c = 0; c < COLS; c++) paint(c, r, shade(0x3c060c, fmaxf(0, 1 - (r - hz) * .22)));
+	for (c = 0; c < COLS; c++) put(c, hz, '-', shade(mix(neon, 0xffc8c0, .4), .8));
 	for (r = hz + 1; r < ROWS; r++) {
 		int d = r - hz;
 		float dd = d + 1, fade = fminf(1, .45 + d * .08);
@@ -451,7 +497,7 @@ static void draw(void) {
 	if (frame < 200) text(COLS / 2 - 11, OY / 4 + 3, "SPACE JUMPS. GRAB THE AAs", WHITE);
 
 	if (!stopped) return;
-	for (i = 0; i < COLS * ROWS; i++) ink[i] = shade(ink[i], 1 - fminf(s / 20., 1) * .55);
+	for (i = 0; i < COLS * ROWS; i++) ink[i] = shade(ink[i], 1 - fminf(s / 20., 1) * .55), back[i] = shade(back[i], 1 - fminf(s / 20., 1) * .55);
 	if (s < 8) return;
 	c = COLS / 2 - 12, r = OY / 4 + 7;
 	text(c, r, ".----------------------.", 0xffb46e);
@@ -466,9 +512,10 @@ static char *out;  // a frame of escapes
 
 static int frame_ansi(void) {
 	char *o = out;
-	Color cur = -1;
+	Color cur = -1, bg = -1;
 	o += sprintf(o, "\33[H");
 	for (int i = 0; i < COLS * ROWS; i++) {
+		if (back[i] - bg) bg = back[i], o += sprintf(o, "\33[48;2;%d;%d;%dm", bg >> 16, bg >> 8 & 255, bg & 255);
 		if (scr[i] - ' ' && ink[i] - cur) cur = ink[i], o += sprintf(o, "\33[38;2;%d;%d;%dm", cur >> 16, cur >> 8 & 255, cur & 255);
 		*o++ = scr[i];
 		if (i % COLS == COLS - 1 && i < COLS * ROWS - 1) *o++ = '\n';
@@ -616,7 +663,7 @@ int main(int argc, char **argv) {
 	long shown = 0;
 	int press;
 	ioctl(1, TIOCGWINSZ, &ws);
-	pcm = malloc(RATE * 120), out = malloc(MAXW * MAXH * 20 + 64);
+	pcm = malloc(RATE * 120), out = malloc(MAXW * MAXH * 40 + 64);
 	COLS = ws.ws_col > MAXW ? MAXW : ws.ws_col, ROWS = ws.ws_row > MAXH ? MAXH : ws.ws_row;
 #ifdef DEV
 	if (dev(argc, argv)) return 0;

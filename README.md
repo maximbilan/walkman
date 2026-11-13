@@ -6,7 +6,7 @@ A platformer for your terminal, written as one C file shaped like a Walkman wear
 
 <p align="center"><img src="walkman.png" width="720" alt="walkman.c printed in a terminal: the source code forms a Walkman with headphones, two cassette reels in its window, in sunset colors"></p>
 
-<p align="center"><img src="walkman.gif" width="640" alt="walkman.c running in a terminal: a runner with headphones jumps across a skyline of cassettes while a Compact Disc boss rises in front of the sun and throws discs"></p>
+<p align="center"><img src="walkman.gif" width="640" alt="walkman.c running in a terminal: a runner with headphones jumps across a skyline of cassettes under a red storm sky while a Compact Disc boss rises in front of the sun and throws discs"></p>
 
 ## Run it
 
@@ -23,6 +23,8 @@ The music is synthesized when the game starts, written to `/tmp/walkman-*.wav` a
 ## The game
 
 You run on Walkman batteries across a skyline of cassettes. The batteries last 7 seconds, so grab the AA cells floating over the tapes. When they die, the tape drags to a stop: the music sags and the whole world slows down with it.
+
+The sky is a red storm: clouds roll over a burning sun, lightning strikes every few seconds, and ash drifts up past the mountains.
 
 Every so often the sun goes dark and **the Compact Disc** rises in its place: the format that killed the cassette. It throws six discs at your feet, each with a battery hanging over it. Jump the discs, keep your batteries up, and the CD gets **SKIPPED!** Touch one and you're **SCRATCHED**.
 
